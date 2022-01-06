@@ -7,6 +7,8 @@ from itertools import chain
 from pathlib import Path
 from tempfile import mkdtemp
 
+from colorama import init as colorama_init, Fore, Style
+
 __version__ = "0.1.0"
 
 dir = Path(__file__).parent
@@ -15,6 +17,10 @@ include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
 lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
 vswhere_path = dir / "data" / "vswhere.exe"
 
+
+def coloprint(*args, **kwargs):
+    colorama_init(autoreset=True)
+    print(*args, **kwargs)
 
 def glob(pattern):
     """Glob files according to a pattern. Unlike pathlib.Path.glob, supports absolute paths."""
@@ -54,11 +60,17 @@ def interactive_execute(exe, pause=False):
     """Execute something. Pring exit code and optionally pause for user input in the end."""
     ret = sp.run(exe, check=False)
 
+    if ret.returncode == 0:
+        color = Style.BRIGHT + Fore.GREEN
+    else:
+        color = Style.BRIGHT + Fore.RED
+
+    coloprint(f"\n{color}Process exited with code {ret.returncode}.", end="")
+
     if pause:
-        print(f"\nProcess exited with code {ret.returncode}", end="")
         input()
     else:
-        print(f"\nProcess exited with code {ret.returncode}")
+        print()
 
 
 def build(sources, debug, output):
@@ -69,7 +81,7 @@ def build(sources, debug, output):
         ret = sp.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True, check=True)
 
         if ret.stdout == "":
-            print("Could not find Visual Studio.")
+            coloprint(f"{Style.BRIGHT}{Fore.RED}Error: Could not find Visual Studio.")
             sys.exit(1)
         else:
             vspath = ret.stdout[:-1]
@@ -103,7 +115,7 @@ def build(sources, debug, output):
         ret = sp.run(activate_environment + args, shell=True, executable=shutil.which("powershell"), check=False)
 
     if ret.returncode != 0:
-        print(f"Compilation failed with code {ret.returncode}.")
+        coloprint(f"{Style.BRIGHT}{Fore.RED}Compilation failed with code {ret.returncode}.")
         sys.exit(ret.returncode)
 
 
@@ -112,68 +124,27 @@ def run(files, debug, output, terminal, binary, pause):
     if binary:
         exe = files[0]
     else:
+        if not terminal:
+            # Print helpful messages to separate building and running
+            coloprint(f"{Style.BRIGHT}{Fore.CYAN}Building")
+
         build(files, debug, output)
         exe = output_name(files)
+
+        if not terminal:
+            # Print helpful messages to separate building and running
+            coloprint(f"{Style.BRIGHT}{Fore.CYAN}Launching")
 
     if terminal:
         if sys.executable.endswith("kot.exe"):
             wrapper_executable = [sys.executable]
         else:
-            wrapper_executable = [sys.executable, __file__]
+            wrapper_executable = [sys.executable, dir / "__main__.py"]
 
         sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=True)
     else:
         interactive_execute(exe, pause)
 
-
-def main():
-    parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
-    parser.set_defaults(subcommand=None)
-    parser.add_argument("-V", "--version", action='version', version=__version__)
-    subparsers = parser.add_subparsers(title="subcommands")
-
-    parser_build = subparsers.add_parser("build", description="Build a C++ file.")
-    parser_build.set_defaults(subcommand="build")
-    parser_build.add_argument("sources", nargs="+", help="one or more .cpp files to build")
-    parser_build.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    parser_build.add_argument("-o", "--output", help="specify a different name for the output file")
-
-    parser_run = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
-    parser_run.set_defaults(subcommand="run")
-    parser_run.add_argument("files", nargs="+", help="one or more .cpp files to build or a single binary file to run")
-    parser_run.add_argument("-b", "--binary", action="store_true", help="run the binary file without building")
-    parser_run.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    parser_run.add_argument("-o", "--output", help="specify a different name for the output file")
-    decorations = parser_run.add_mutually_exclusive_group()
-    decorations.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    decorations.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
-
-    args = parser.parse_args()
-    if args.subcommand == "build":
-        build(args.sources, args.debug, args.output)
-    elif args.subcommand == "run":
-        if args.binary and len(args.files) != 1:
-            parser_run.print_usage()
-            print("kot run: error: argument -b/--binary: not allowed with multiple files specified")
-            return 1
-
-        if args.binary and args.output:
-            parser_run.print_usage()
-            print("kot run: error: argument -b/--binary: not allowed with with argument -o/--output")
-            return 1
-
-        if args.binary and args.debug:
-            parser_run.print_usage()
-            print("kot run: error: argument -b/--binary: not allowed with with argument -d/--debug")
-            return 1
-
-        run(args.files, args.debug, args.output, args.terminal, args.binary, args.pause)
-    else:
-        parser.error("missing subcommand")
-
 @atexit.register
 def cleanup():
     shutil.rmtree(temp_dir)
-
-if __name__ == "__main__":
-    sys.exit(main())

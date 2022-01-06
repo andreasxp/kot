@@ -1,13 +1,26 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+import os
+from importlib.util import find_spec
 
+sys.setrecursionlimit(5000)
 block_cipher = None
+
+def module_dir(module_name):
+    """Return module's root directory.
+    If the module does not have a directory (it is a single file) then return None.
+    """
+    module_origin = find_spec(module_name).origin
+    if os.path.basename(module_origin) == "__init__.py":
+        return os.path.dirname(module_origin)
+    return None
 
 
 a = Analysis(
-    ['kot.py'],
+    ['kot/__main__.py'],
     pathex=[],
     binaries=[],
-    datas=[("data", "data")],
+    datas=[(module_dir("kot") + "/data", "kot/data")],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],
