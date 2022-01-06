@@ -1,8 +1,9 @@
-# Bin folder
-bin
+# Dist folder
+dist
 
 # Example build files
 examples/*.exe
+*.exe
 
 # IDE folders
 .idea

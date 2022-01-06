@@ -16,11 +16,7 @@ temp_dir = mkdtemp()
 
 include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
 lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
-
-if is_frozen:
-    vswhere_path = dir / "vswhere.exe"
-else:
-    vswhere_path = dir / "data/vswhere.exe"
+vswhere_path = dir / "data" / "vswhere.exe"
 
 
 def glob(pattern):

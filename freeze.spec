@@ -7,7 +7,7 @@ a = Analysis(
     ['kot.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[("data", "data")],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],
