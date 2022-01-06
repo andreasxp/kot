@@ -1,17 +1,14 @@
 import sys
 import atexit
 import shutil
-import subprocess
+import subprocess as sp
 from tempfile import mkdtemp
 from itertools import chain
 from pathlib import Path
 from argparse import ArgumentParser
 
-
 dir = Path(__file__).parent
-
 temp_dir = mkdtemp()
-
 include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
 lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
 vswhere_path = dir / "data" / "vswhere.exe"
@@ -53,7 +50,7 @@ def process_sources(sources):
 
 def interactive_execute(exe, pause=False):
     """Execute something. Pring exit code and optionally pause for user input in the end."""
-    ret = subprocess.run(exe)
+    ret = sp.run(exe, check=False)
 
     if pause:
         print(f"\nProcess exited with code {ret.returncode}", end="")
@@ -67,7 +64,7 @@ def build(sources, debug, output):
     # Determine compiler
     cl_location = shutil.which("cl")
     if cl_location is None:
-        ret = subprocess.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True)
+        ret = sp.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True, check=True)
 
         if ret.stdout == "":
             print("Could not find Visual Studio.")
@@ -99,9 +96,9 @@ def build(sources, debug, output):
     #print(" ".join(args))
 
     if activate_environment is None:
-        ret = subprocess.run(args)
+        ret = sp.run(args, check=False)
     else:
-        ret = subprocess.run(activate_environment + args, shell=True, executable=shutil.which("powershell"))
+        ret = sp.run(activate_environment + args, shell=True, executable=shutil.which("powershell"), check=False)
 
     if ret.returncode != 0:
         print(f"Compilation failed with code {ret.returncode}.")
@@ -122,7 +119,7 @@ def run(files, debug, output, terminal, binary, pause):
         else:
             wrapper_executable = [sys.executable, __file__]
 
-        subprocess.run(wrapper_executable + ["run", "-bp", exe], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=True)
     else:
         interactive_execute(exe, pause)
 
