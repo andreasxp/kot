@@ -27,15 +27,16 @@ def output_name(sources, override=None):
     default_name = "app"
 
     if override is not None:
-        result = Path(override).expanduser()
+        result = Path(override)
         if result.suffix != ".exe":
             result = Path(str(result) + ".exe")
-        return result
+    elif len(sources) > 1 or "*" in sources[0]:
+        result = Path(default_name + ".exe")
+    else:
+        result = Path(sources[0]).with_suffix(".exe")
 
-    if len(sources) > 1 or "*" in sources[0]:
-        return default_name + ".exe"
-
-    return Path(sources[0]).stem + ".exe"
+    result = result.expanduser()
+    return result
 
 
 def process_sources(sources):
@@ -44,8 +45,7 @@ def process_sources(sources):
     """
     expanded_sources = (Path(source).expanduser() for source in sources)
     globbed_sources = (glob(pattern) for pattern in expanded_sources)
-    flat_globbed_sources = chain.from_iterable(globbed_sources)
-    result = [str(source) for source in flat_globbed_sources]
+    result = list(chain.from_iterable(globbed_sources))
 
     return result
 
@@ -117,7 +117,7 @@ def run(files, debug, output, terminal, binary, pause):
             console.log("Building")
 
         build(files, debug, output)
-        exe = output_name(files)
+        exe = output_name(files, output)
 
         if not terminal:
             # Print helpful messages to separate building and running
