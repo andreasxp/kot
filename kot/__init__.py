@@ -29,7 +29,7 @@ def output_name(sources, override=None):
     if override is not None:
         result = Path(override).expanduser()
         if result.suffix != ".exe":
-            result += ".exe"
+            result = Path(str(result) + ".exe")
         return result
 
     if len(sources) > 1 or "*" in sources[0]:
@@ -90,10 +90,11 @@ def build(sources, debug, output):
         "/Od" if debug else "/O2",
         "/MTd" if debug else "/MT"
     ]
-    include_args = ["/I", str(include_dir)]
+    include_args = ["/I", include_dir]
     link_args = ["/link", f"/LIBPATH:\"{lib_dir}\""]
 
     args = compiler + sources_args + target_args + misc_args + optimization_args + include_args + link_args
+    args = [str(arg) for arg in args]
     console.debug(f"Compiling: {' '.join(args)}")
 
     if activate_environment is None:
