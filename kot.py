@@ -41,7 +41,7 @@ def output_name(sources, override=None):
 
     if len(sources) > 1 or "*" in sources[0]:
         return default_name + ".exe"
-    
+
     return Path(sources[0]).stem + ".exe"
 
 
@@ -74,7 +74,7 @@ def build(sources, debug, output):
     cl_location = shutil.which("cl")
     if cl_location is None:
         ret = subprocess.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True)
-        
+
         if ret.stdout == "":
             print("Could not find Visual Studio.")
             sys.exit(1)
@@ -83,13 +83,13 @@ def build(sources, debug, output):
 
         activate_environment = [
             "import-module", f"\"{vspath}/Common7/Tools/Microsoft.VisualStudio.DevShell.dll\"", ";",
-            "Enter-VsDevShell", "-VsInstallPath", f"\"{vspath}\"", "-SkipAutomaticLocation", 
+            "Enter-VsDevShell", "-VsInstallPath", f"\"{vspath}\"", "-SkipAutomaticLocation",
             "-DevCmdArguments", "'-arch=x64 -no_logo'", ";"
         ]
     else:
         activate_environment = None
-    
-    
+
+
     compiler = ["cl"]
     sources_args = process_sources(sources)
     target_args = ["/Fe:", output_name(sources, output)]
@@ -102,6 +102,7 @@ def build(sources, debug, output):
     link_args = ["/link", f"/LIBPATH:\"{lib_dir}\""]
 
     args = compiler + sources_args + target_args + misc_args + optimization_args + include_args + link_args
+    #print(" ".join(args))
 
     if activate_environment is None:
         ret = subprocess.run(args)
@@ -120,7 +121,7 @@ def run(files, debug, output, terminal, binary, pause):
     else:
         build(files, debug, output)
         exe = output_name(files)
-    
+
     if terminal:
         if is_frozen:
             wrapper_executable = [sys.executable]
@@ -161,19 +162,20 @@ def main():
             parser_run.print_usage()
             print("kot run: error: argument -b/--binary: not allowed with multiple files specified")
             return 1
-        
+
         if args.binary and args.output:
             parser_run.print_usage()
             print("kot run: error: argument -b/--binary: not allowed with with argument -o/--output")
             return 1
-        
+
         if args.binary and args.debug:
             parser_run.print_usage()
             print("kot run: error: argument -b/--binary: not allowed with with argument -d/--debug")
             return 1
 
         run(args.files, args.debug, args.output, args.terminal, args.binary, args.pause)
-
+    else:
+        parser.error("missing subcommand")
 
 @atexit.register
 def cleanup():
