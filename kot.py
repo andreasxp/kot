@@ -1,11 +1,11 @@
-import sys
 import atexit
 import shutil
 import subprocess as sp
-from tempfile import mkdtemp
+import sys
+from argparse import ArgumentParser
 from itertools import chain
 from pathlib import Path
-from argparse import ArgumentParser
+from tempfile import mkdtemp
 
 dir = Path(__file__).parent
 temp_dir = mkdtemp()
@@ -126,7 +126,7 @@ def run(files, debug, output, terminal, binary, pause):
 
 def main():
     parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
-    parser.set_defaults(subcommand="none")
+    parser.set_defaults(subcommand=None)
     subparsers = parser.add_subparsers(title="subcommands")
 
     parser_build = subparsers.add_parser("build", description="Build a C++ file.")
