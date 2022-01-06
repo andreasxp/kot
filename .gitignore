@@ -1,6 +1,9 @@
 # Bin folder
 bin
 
+# Example build files
+examples/*.exe
+
 # IDE folders
 .idea
 .vscode
