@@ -1,30 +1,33 @@
 import sys
-import os
 import atexit
 import shutil
 import subprocess
+from tempfile import mkdtemp
+from itertools import chain
 from pathlib import Path
 from argparse import ArgumentParser
 
-def resolved(path):
-    """Resolve a path, eliminating symlinks and special characters like `.`, `..`, `~`."""
-    return Path(path).expanduser().resolve()
 
 is_frozen = sys.executable.endswith("kot.exe")
 
 dir = Path(__file__).parent
 
-temp_dir = resolved(f"~/AppData/Local/Temp/kot/{os.getpid()}")
-Path(temp_dir).mkdir(parents=True, exist_ok=True)
+temp_dir = mkdtemp()
 
-include_dir = resolved("~/vcpkg/installed/x64-windows-static/include")
-lib_dir = resolved("~/vcpkg/installed/x64-windows-static/lib")
+include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
+lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
 
 if is_frozen:
     vswhere_path = dir / "vswhere.exe"
 else:
     vswhere_path = dir / "data/vswhere.exe"
 
+
+def glob(pattern):
+    """Glob files according to a pattern. Unlike pathlib.Path.glob, supports absolute paths."""
+    pattern = Path(pattern)
+
+    return Path(pattern.anchor).glob(str(pattern.relative_to(pattern.anchor)))
 
 def output_name(sources, override=None):
     """Calculate output path. Usually it's sources[0] with an `.exe` suffix. If override is not None, use override."""
@@ -69,10 +72,15 @@ def build(sources, debug, output):
     else:
         activate_environment = None
     
+    resolved_sources = (Path(source).expanduser() for source in sources)
+    globbed_sources = (glob(pattern) for pattern in resolved_sources)
+    flat_globbed_sources = chain.from_iterable(globbed_sources)
+    sources = [str(source) for source in flat_globbed_sources]
+
     compiler = ["cl"]
-    sources_args = [str(Path(source).expanduser().resolve()) for source in sources]
+    sources_args = sources
     target_args = ["/Fe:", output_name(sources, output)]
-    misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", str(temp_dir) + "\\"]
+    misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", temp_dir + "\\"]
     optimization_args = [
         "/Od" if debug else "/O2",
         "/MTd" if debug else "/MT"
