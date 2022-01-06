@@ -6,8 +6,7 @@ from argparse import ArgumentParser
 from itertools import chain
 from pathlib import Path
 from tempfile import mkdtemp
-
-from colorama import init as colorama_init, Fore, Style
+from kot import console
 
 __version__ = "0.1.0"
 
@@ -16,16 +15,11 @@ temp_dir = mkdtemp()
 include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
 lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
 vswhere_path = dir / "data" / "vswhere.exe"
-
-
-def coloprint(*args, **kwargs):
-    colorama_init(autoreset=True)
-    print(*args, **kwargs)
+print_debug = False
 
 def glob(pattern):
     """Glob files according to a pattern. Unlike pathlib.Path.glob, supports absolute paths."""
     pattern = Path(pattern)
-
     return Path(pattern.anchor).glob(str(pattern.relative_to(pattern.anchor)))
 
 def output_name(sources, override=None):
@@ -59,18 +53,7 @@ def process_sources(sources):
 def interactive_execute(exe, pause=False):
     """Execute something. Pring exit code and optionally pause for user input in the end."""
     ret = sp.run(exe, check=False)
-
-    if ret.returncode == 0:
-        color = Style.BRIGHT + Fore.GREEN
-    else:
-        color = Style.BRIGHT + Fore.RED
-
-    coloprint(f"\n{color}Process exited with code {ret.returncode}.", end="")
-
-    if pause:
-        input()
-    else:
-        print()
+    console.log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=pause)
 
 
 def build(sources, debug, output):
@@ -81,7 +64,7 @@ def build(sources, debug, output):
         ret = sp.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True, check=True)
 
         if ret.stdout == "":
-            coloprint(f"{Style.BRIGHT}{Fore.RED}Error: Could not find Visual Studio.")
+            console.error("Could not find Visual Studio.")
             sys.exit(1)
         else:
             vspath = ret.stdout[:-1]
@@ -97,6 +80,10 @@ def build(sources, debug, output):
 
     compiler = ["cl"]
     sources_args = process_sources(sources)
+    if len(sources_args) == 0:
+        console.error("No source files with specified names found.")
+        sys.exit(1)
+
     target_args = ["/Fe:", output_name(sources, output)]
     misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", temp_dir + "\\"]
     optimization_args = [
@@ -107,7 +94,7 @@ def build(sources, debug, output):
     link_args = ["/link", f"/LIBPATH:\"{lib_dir}\""]
 
     args = compiler + sources_args + target_args + misc_args + optimization_args + include_args + link_args
-    #print(" ".join(args))
+    console.debug(f"Compiling: {' '.join(args)}")
 
     if activate_environment is None:
         ret = sp.run(args, check=False)
@@ -115,8 +102,8 @@ def build(sources, debug, output):
         ret = sp.run(activate_environment + args, shell=True, executable=shutil.which("powershell"), check=False)
 
     if ret.returncode != 0:
-        coloprint(f"{Style.BRIGHT}{Fore.RED}Compilation failed with code {ret.returncode}.")
-        sys.exit(ret.returncode)
+        console.error(f"Compilation failed with code {ret.returncode}.")
+        sys.exit(2)
 
 
 def run(files, debug, output, terminal, binary, pause):
@@ -126,14 +113,14 @@ def run(files, debug, output, terminal, binary, pause):
     else:
         if not terminal:
             # Print helpful messages to separate building and running
-            coloprint(f"{Style.BRIGHT}{Fore.CYAN}Building")
+            console.log("Building")
 
         build(files, debug, output)
         exe = output_name(files)
 
         if not terminal:
             # Print helpful messages to separate building and running
-            coloprint(f"{Style.BRIGHT}{Fore.CYAN}Launching")
+            console.log("Launching")
 
     if terminal:
         if sys.executable.endswith("kot.exe"):
