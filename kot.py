@@ -8,8 +8,6 @@ from pathlib import Path
 from argparse import ArgumentParser
 
 
-is_frozen = sys.executable.endswith("kot.exe")
-
 dir = Path(__file__).parent
 
 temp_dir = mkdtemp()
@@ -119,10 +117,10 @@ def run(files, debug, output, terminal, binary, pause):
         exe = output_name(files)
 
     if terminal:
-        if is_frozen:
+        if sys.executable.endswith("kot.exe"):
             wrapper_executable = [sys.executable]
         else:
-            wrapper_executable = ["python", __file__]
+            wrapper_executable = [sys.executable, __file__]
 
         subprocess.run(wrapper_executable + ["run", "-bp", exe], creationflags=subprocess.CREATE_NEW_CONSOLE)
     else:
