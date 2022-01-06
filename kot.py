@@ -31,13 +31,30 @@ def glob(pattern):
 
 def output_name(sources, override=None):
     """Calculate output path. Usually it's sources[0] with an `.exe` suffix. If override is not None, use override."""
+    default_name = "app"
+
     if override is not None:
-        result = resolved(override)
+        result = Path(override).expanduser()
         if result.suffix != ".exe":
             result += ".exe"
         return result
 
-    return resolved(sources[0]).with_suffix(".exe")
+    if len(sources) > 1 or "*" in sources[0]:
+        return default_name + ".exe"
+    
+    return Path(sources[0]).stem + ".exe"
+
+
+def process_sources(sources):
+    """Convert a list of sources as specified by the user to a list of sources ready for compilation.
+    Resolves glob patterns and ~ symbols.
+    """
+    expanded_sources = (Path(source).expanduser() for source in sources)
+    globbed_sources = (glob(pattern) for pattern in expanded_sources)
+    flat_globbed_sources = chain.from_iterable(globbed_sources)
+    result = [str(source) for source in flat_globbed_sources]
+
+    return result
 
 
 def interactive_execute(exe, pause=False):
@@ -72,13 +89,9 @@ def build(sources, debug, output):
     else:
         activate_environment = None
     
-    resolved_sources = (Path(source).expanduser() for source in sources)
-    globbed_sources = (glob(pattern) for pattern in resolved_sources)
-    flat_globbed_sources = chain.from_iterable(globbed_sources)
-    sources = [str(source) for source in flat_globbed_sources]
-
+    
     compiler = ["cl"]
-    sources_args = sources
+    sources_args = process_sources(sources)
     target_args = ["/Fe:", output_name(sources, output)]
     misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", temp_dir + "\\"]
     optimization_args = [
