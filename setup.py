@@ -9,11 +9,6 @@ install_requires = [
 extras_require = {
     "freeze":  [
         "pyinstaller",
-    ],
-    "docs": [
-        "sphinx",
-        "furo",
-        "sphinx-copybutton"
     ]
 }
 
