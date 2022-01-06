@@ -7,6 +7,8 @@ from itertools import chain
 from pathlib import Path
 from tempfile import mkdtemp
 
+__version__ = "0.1.0"
+
 dir = Path(__file__).parent
 temp_dir = mkdtemp()
 include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
@@ -127,6 +129,7 @@ def run(files, debug, output, terminal, binary, pause):
 def main():
     parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
     parser.set_defaults(subcommand=None)
+    parser.add_argument("-V", "--version", action='version', version=__version__)
     subparsers = parser.add_subparsers(title="subcommands")
 
     parser_build = subparsers.add_parser("build", description="Build a C++ file.")
