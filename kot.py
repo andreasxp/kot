@@ -112,25 +112,25 @@ def run(files, debug, output, terminal, binary, pause):
 
 
 def main():
-    parser = ArgumentParser("kot")
+    parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
     parser.set_defaults(subcommand="none")
     subparsers = parser.add_subparsers(title="subcommands")
 
-    parser_build = subparsers.add_parser("build")
+    parser_build = subparsers.add_parser("build", description="Build a C++ file.")
     parser_build.set_defaults(subcommand="build")
-    parser_build.add_argument("sources", nargs="+")
-    parser_build.add_argument("-d", "--debug", action="store_true")
-    parser_build.add_argument("-o", "--output")
+    parser_build.add_argument("sources", nargs="+", help="one or more .cpp files to build")
+    parser_build.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    parser_build.add_argument("-o", "--output", help="specify a different name for the output file")
 
-    parser_run = subparsers.add_parser("run")
+    parser_run = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
     parser_run.set_defaults(subcommand="run")
-    parser_run.add_argument("files", nargs="+")
-    parser_run.add_argument("-b", "--binary", action="store_true")
-    parser_run.add_argument("-d", "--debug", action="store_true")
-    parser_run.add_argument("-o", "--output")
+    parser_run.add_argument("files", nargs="+", help="one or more .cpp files to build or a single binary file to run")
+    parser_run.add_argument("-b", "--binary", action="store_true", help="run the binary file without building")
+    parser_run.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    parser_run.add_argument("-o", "--output", help="specify a different name for the output file")
     decorations = parser_run.add_mutually_exclusive_group()
-    decorations.add_argument("-p", "--pause", action="store_true")
-    decorations.add_argument("-t", "--terminal", action="store_true")
+    decorations.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    decorations.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
 
     args = parser.parse_args()
     if args.subcommand == "build":
