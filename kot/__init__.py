@@ -17,10 +17,12 @@ lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
 vswhere_path = dir / "data" / "vswhere.exe"
 print_debug = False
 
+
 def glob(pattern):
     """Glob files according to a pattern. Unlike pathlib.Path.glob, supports absolute paths."""
     pattern = Path(pattern)
     return Path(pattern.anchor).glob(str(pattern.relative_to(pattern.anchor)))
+
 
 def output_name(sources, override=None):
     """Calculate output path. Usually it's sources[0] with an `.exe` suffix. If override is not None, use override."""
@@ -77,7 +79,6 @@ def build(sources, debug, output):
     else:
         activate_environment = None
 
-
     compiler = ["cl"]
     sources_args = process_sources(sources)
     if len(sources_args) == 0:
@@ -109,29 +110,34 @@ def build(sources, debug, output):
 
 def run(files, debug, output, terminal, binary, pause):
     """Run a binary, optionally compiling it from sources first."""
-    if binary:
-        exe = files[0]
-    else:
-        if not terminal:
-            # Print helpful messages to separate building and running
-            console.log("Building")
-
-        build(files, debug, output)
-        exe = output_name(files, output)
-
-        if not terminal:
-            # Print helpful messages to separate building and running
-            console.log("Launching")
-
-    if terminal:
-        if sys.executable.endswith("kot.exe"):
-            wrapper_executable = [sys.executable]
+    try:
+        if binary:
+            exe = files[0]
         else:
-            wrapper_executable = [sys.executable, dir / "__main__.py"]
+            if not terminal:
+                # Print helpful messages to separate building and running
+                console.log("Building")
 
-        sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=True)
-    else:
-        interactive_execute(exe, pause)
+            build(files, debug, output)
+            exe = output_name(files, output)
+
+            if not terminal:
+                # Print helpful messages to separate building and running
+                console.log("Launching")
+
+        if terminal:
+            if sys.executable.endswith("kot.exe"):
+                wrapper_executable = [sys.executable]
+            else:
+                wrapper_executable = [sys.executable, dir / "__main__.py"]
+
+            sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=False)
+        else:
+            interactive_execute(exe, pause)
+    except KeyboardInterrupt:
+        console.log("Received keyboard interrupt.", good=False)
+        sys.exit(3)
+
 
 @atexit.register
 def cleanup():
