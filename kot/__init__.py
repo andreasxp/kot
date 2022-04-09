@@ -7,6 +7,7 @@ from itertools import chain
 from pathlib import Path
 from tempfile import mkdtemp
 from kot import console
+from kot.update import latest, prompt_to_update
 
 __version__ = "0.1.0"
 

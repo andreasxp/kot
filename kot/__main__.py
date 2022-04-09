@@ -57,5 +57,8 @@ def main():
     else:
         parser.error("missing subcommand")
 
+    kot.prompt_to_update()
+
+
 if __name__ == "__main__":
     sys.exit(main())
