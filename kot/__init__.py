@@ -136,7 +136,7 @@ def run(files, debug, output, terminal, binary, pause):
         else:
             interactive_execute(exe, pause)
     except KeyboardInterrupt:
-        console.log("Received keyboard interrupt.", good=False)
+        console.log("\nReceived keyboard interrupt.", good=False)
         sys.exit(3)
 
 
