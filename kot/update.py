@@ -1,5 +1,7 @@
 import requests
+
 import kot
+
 from .console import log
 
 

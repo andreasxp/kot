@@ -2,9 +2,11 @@ from typing import Optional
 from colorama import init as colorama_init, Fore, Style
 import kot
 
+
 def coloprint(*args, **kwargs):
     colorama_init(autoreset=True)
     print(*args, **kwargs)
+
 
 def log(text, good: Optional[bool] = None, wait=False):
     if good is None:
@@ -21,9 +23,11 @@ def log(text, good: Optional[bool] = None, wait=False):
     else:
         print()
 
+
 def error(text):
     coloprint(f"{Style.BRIGHT}{Fore.RED}Error: {text}")
 
+
 def debug(text):
-    if kot.print_debug:
+    if kot.debug_mode:
         coloprint(f"{Style.BRIGHT}{Fore.YELLOW}{text}")
