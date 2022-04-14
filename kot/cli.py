@@ -57,7 +57,7 @@ def cli_build(cli):
 def cli_run(cli):
     """Run a binary, optionally compiling it from sources first."""
     if cli.binary:
-        exe = cli.files[0]
+        exe = cli.file[0]
     else:
         if not cli.terminal:
             # Print helpful messages to separate building and running
