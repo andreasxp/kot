@@ -1,6 +1,6 @@
 from os.path import dirname
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 rootdir = dirname(__file__)
 debug_mode = False
