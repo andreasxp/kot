@@ -1,19 +1,16 @@
 import atexit
 import shutil
 import subprocess as sp
-from pathlib import Path
+from os.path import expanduser
 from tempfile import mkdtemp
 
 import kot
+
 from .console import debug as log_debug
 
-include_dir = Path("~/vcpkg/installed/x64-windows-static/include").expanduser()
-lib_dir = Path("~/vcpkg/installed/x64-windows-static/lib").expanduser()
+include_dir = expanduser("~/vcpkg/installed/x64-windows-static/include")
+lib_dir = expanduser("~/vcpkg/installed/x64-windows-static/lib")
 print_debug = False
-
-
-class BuildSystemError(RuntimeError):
-    """Build system is broken."""
 
 
 def build_vs(sources: list, output: str, debug: bool):
@@ -21,11 +18,11 @@ def build_vs(sources: list, output: str, debug: bool):
 
     # Find Visual Studio compiler --------------------------------------------------------------------------------------
     if shutil.which("cl") is None:
-        vswhere_path = kot.dir / "data" / "vswhere.exe"
+        vswhere_path = kot.rootdir + "/data/vswhere.exe"
         ret = sp.run([vswhere_path, "-property", "InstallationPath"], text=True, capture_output=True, check=True)
 
         if ret.stdout == "":
-            raise BuildSystemError("Could not find Visual Studio.")
+            raise kot.BuildSystemError("Could not find Visual Studio.")
 
         vspath = ret.stdout[:-1]
 
@@ -39,7 +36,7 @@ def build_vs(sources: list, output: str, debug: bool):
 
     compiler = ["cl"]
     if len(sources) == 0:
-        raise BuildSystemError("No source files with specified names found.")
+        raise kot.BuildSystemError("No source files with specified names found.")
 
     # Create temp directory for compilation ----------------------------------------------------------------------------
     temp_dir = mkdtemp()

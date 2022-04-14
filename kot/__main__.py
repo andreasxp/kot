@@ -2,9 +2,11 @@ import sys
 from argparse import ArgumentParser
 
 import kot
-from .cli import cli_build, cli_run, BuildFailure, BuildSystemError
-from .update import prompt_to_update
-from .console import log, error as log_error
+
+from kot.cli import cli_build, cli_run
+from kot.console import error as log_error
+from kot.console import log
+from kot.update import prompt_to_update
 
 
 def main():
@@ -75,10 +77,10 @@ def main():
     result = 0
     try:
         cli_action(args)
-    except BuildSystemError as e:
+    except kot.BuildSystemError as e:
         log_error(e)
         result = 2
-    except BuildFailure as e:
+    except kot.BuildFailure as e:
         log_error(e)
         result = 1
 

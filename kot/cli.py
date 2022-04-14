@@ -3,14 +3,11 @@ import sys
 from itertools import chain
 from pathlib import Path
 
-from .build import build_vs, BuildSystemError
-from .console import error as log_error
+import kot
+
+from .build import build_vs
 from .console import log
 from .util import glob, interactive_execute
-
-
-class BuildFailure(ValueError):
-    """Build system attempted to build, but failed due to errors in source files."""
 
 
 def sources_from_cli(sources):
@@ -49,7 +46,7 @@ def cli_build(cli):
     returncode = build_vs(sources, output, debug)
 
     if returncode != 0:
-        raise BuildFailure(f"Compilation failed with code {returncode}.")
+        raise kot.BuildFailure(f"Compilation failed with code {returncode}.")
 
     return output
 
@@ -73,7 +70,7 @@ def cli_run(cli):
         if sys.executable.endswith("kot.exe"):
             wrapper_executable = [sys.executable]
         else:
-            wrapper_executable = [sys.executable, dir / "__main__.py"]
+            wrapper_executable = [sys.executable, kot.rootdir + "/__main__.py"]
 
         sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=False)
     else:
