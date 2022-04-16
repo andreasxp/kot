@@ -6,7 +6,7 @@ from tempfile import mkdtemp
 
 import appdirs
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 rootdir = dirname(__file__).replace("\\", "/")
 tempdir = mkdtemp().replace("\\", "/")
