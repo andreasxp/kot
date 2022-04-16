@@ -1,13 +1,12 @@
-import subprocess as sp
-import sys
 from itertools import chain
 from pathlib import Path
+from argparse import ArgumentParser, REMAINDER
 
 import kot
 
-from .build import build_vs
+from .base import build, launch
 from .console import log
-from .util import glob, interactive_execute
+from .util import glob
 
 
 def sources_from_cli(sources):
@@ -43,7 +42,7 @@ def cli_build(cli):
     output = output_from_cli(sources, cli.output)
     debug = cli.debug
 
-    returncode = build_vs(sources, output, debug)
+    returncode = build(sources, output, debug)
 
     if returncode != 0:
         raise kot.BuildFailure(f"Compilation failed with code {returncode}.")
@@ -51,27 +50,76 @@ def cli_build(cli):
     return output
 
 
-def cli_run(cli):
-    """Run a binary, optionally compiling it from sources first."""
-    if cli.binary:
-        exe = cli.file[0]
-    else:
-        if not cli.terminal:
-            # Print helpful messages to separate building and running
-            log("Building")
-
-        exe = cli_build(cli)
-
-        if not cli.terminal:
-            # Print helpful messages to separate building and running
-            log("Launching")
+def cli_launch(cli):
+    command = cli.command
 
     if cli.terminal:
-        if sys.executable.endswith("kot.exe"):
-            wrapper_executable = [sys.executable]
-        else:
-            wrapper_executable = [sys.executable, kot.rootdir + "/__main__.py"]
-
-        sp.run(wrapper_executable + ["run", "-bp", exe], creationflags=sp.CREATE_NEW_CONSOLE, check=False)
+        style = "terminal"
+    elif cli.pause:
+        style = "pause"
     else:
-        interactive_execute(exe, cli.pause)
+        style = None
+
+    launch(command, style=style)
+
+
+def cli_run(cli):
+    """Run a binary, optionally compiling it from sources first."""
+    # Build ------------------------------------------------------------------------------------------------------------
+    if not cli.terminal:
+        # Print helpful messages to separate building and running
+        log("Building")
+
+    command = cli_build(cli)
+
+    if not cli.terminal:
+        # Print helpful messages to separate building and running
+        log("Launching")
+
+    # Launch -----------------------------------------------------------------------------------------------------------
+    if cli.terminal:
+        style = "terminal"
+    elif cli.pause:
+        style = "pause"
+    else:
+        style = None
+
+    launch(command, style=style)
+
+
+# Argument parser ======================================================================================================
+def _make_parser():
+    parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
+    parser.set_defaults(subcommand=None)
+    parser.add_argument("-V", "--version", action='version', version=kot.__version__)
+    subparsers = parser.add_subparsers(title="subcommands")
+
+    parser_build = subparsers.add_parser("build", description="Build a C++ file.")
+    parser_build.set_defaults(subcommand="build")
+    parser_build.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    parser_build.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    parser_build.add_argument("-o", "--output", help="specify a different name for the output file")
+    parser_build.add_argument("file", nargs="+", help="one or more .cpp files to build")
+
+    parser_run = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
+    parser_run.set_defaults(subcommand="run")
+    parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    parser_run.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    parser_run.add_argument("-o", "--output", help="specify a different name for the output file")
+    style = parser_run.add_mutually_exclusive_group()
+    style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    parser_run.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
+
+    parser_run = subparsers.add_parser("launch", description="Launch a binary executable.")
+    parser_run.set_defaults(subcommand="launch")
+    parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    style = parser_run.add_mutually_exclusive_group()
+    style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    parser_run.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
+
+    return parser
+
+
+parser = _make_parser()

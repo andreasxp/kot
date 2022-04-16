@@ -1,19 +1,21 @@
 import atexit
 import shutil
 import subprocess as sp
+import sys
 from os.path import expanduser
 from tempfile import mkdtemp
 
 import kot
 
 from .console import debug as log_debug
+from .console import log
 
 include_dir = expanduser("~/vcpkg/installed/x64-windows-static/include")
 lib_dir = expanduser("~/vcpkg/installed/x64-windows-static/lib")
 print_debug = False
 
 
-def build_vs(sources: list, output: str, debug: bool):
+def build(sources: list, output: str, debug: bool):
     """Build an executable from a list of sources. Use Visual Studio compiler."""
 
     # Find Visual Studio compiler --------------------------------------------------------------------------------------
@@ -63,3 +65,16 @@ def build_vs(sources: list, output: str, debug: bool):
         ret = sp.run(activate_environment + args, shell=True, executable=shutil.which("powershell"), check=False)
 
     return ret.returncode
+
+
+def launch(command, style: str):
+    if style == "terminal":
+        if sys.executable.endswith("kot.exe"):
+            wrapper_executable = [sys.executable]
+        else:
+            wrapper_executable = [sys.executable, kot.rootdir + "/__main__.py"]
+
+        sp.run(wrapper_executable + ["launch", "-p"] + command, creationflags=sp.CREATE_NEW_CONSOLE, check=True)
+    else:
+        ret = sp.run(command, check=False)
+        log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=(style == "pause"))
