@@ -1,6 +1,7 @@
+import shlex
+from argparse import REMAINDER, ArgumentParser
 from itertools import chain
 from pathlib import Path
-from argparse import ArgumentParser, REMAINDER
 
 import kot
 
@@ -70,7 +71,9 @@ def cli_run(cli):
         # Print helpful messages to separate building and running
         log("Building")
 
-    command = cli_build(cli)
+    command = [cli_build(cli)]
+    if cli.args is not None:
+        command += shlex.split(cli.args)
 
     if not cli.terminal:
         # Print helpful messages to separate building and running
@@ -96,28 +99,29 @@ def _make_parser():
 
     parser_build = subparsers.add_parser("build", description="Build a C++ file.")
     parser_build.set_defaults(subcommand="build")
+    parser_build.add_argument("file", nargs="+", help="one or more .cpp files to build")
     parser_build.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     parser_build.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
     parser_build.add_argument("-o", "--output", help="specify a different name for the output file")
-    parser_build.add_argument("file", nargs="+", help="one or more .cpp files to build")
 
     parser_run = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
     parser_run.set_defaults(subcommand="run")
+    parser_run.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
     parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     parser_run.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
     parser_run.add_argument("-o", "--output", help="specify a different name for the output file")
+    parser_run.add_argument("--args", help="cli arguments for execution")
     style = parser_run.add_mutually_exclusive_group()
     style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
     style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
-    parser_run.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
 
     parser_run = subparsers.add_parser("launch", description="Launch a binary executable.")
     parser_run.set_defaults(subcommand="launch")
+    parser_run.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
     parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     style = parser_run.add_mutually_exclusive_group()
     style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
     style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
-    parser_run.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
 
     return parser
 
