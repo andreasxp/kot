@@ -1,6 +1,16 @@
 from typing import Optional
 from colorama import init as colorama_init, Fore, Style
-import kot
+
+_verbose = 0
+
+
+def setverbose(verbose):
+    global _verbose
+    _verbose = verbose
+
+
+def verbose():
+    return _verbose
 
 
 def coloprint(*args, **kwargs):
@@ -29,5 +39,5 @@ def error(text):
 
 
 def debug(text):
-    if kot.debug_mode:
+    if verbose():
         coloprint(f"{Style.BRIGHT}{Fore.YELLOW}{text}")

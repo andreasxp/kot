@@ -90,7 +90,7 @@ class Config(MutableMapping):
         except FileNotFoundError:
             return {
                 "command": {
-                    "editor": r'Start-Process "notepad.exe" -ArgumentList "$env:playground" -Wait',
+                    "editor": r"notepad.exe $playground",
                 },
                 "path": {
                     "vcpkg": None,
@@ -101,7 +101,7 @@ class Config(MutableMapping):
     def _save(cls, config):
         configpath = cls._configpath()
         with open(configpath, "w", encoding="utf-8") as f:
-            json.dump(config, f)
+            json.dump(config, f, ensure_ascii=False, indent="\t")
 
     def __getitem__(self, key):
         config = self._load()
@@ -117,14 +117,15 @@ class Config(MutableMapping):
         config = self._load()
 
         parts = key.split(".")
+        nestedconfig = config
         for part in parts[:-1]:
-            config = config[part]
-        finalkey = key[-1]
+            nestedconfig = nestedconfig[part]
+        finalkey = parts[-1]
 
-        if finalkey not in config:
+        if finalkey not in nestedconfig:
             raise KeyError(f"config entry {key} does not exist")
 
-        config[finalkey] = value
+        nestedconfig[finalkey] = value
         self._save(config)
 
     def __delitem__(self, key):

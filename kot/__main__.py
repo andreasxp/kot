@@ -2,9 +2,9 @@ import sys
 
 import kot
 
-from kot.cli import parser, cli_build, cli_run, cli_launch, cli_playground
+from kot.cli import parser, cli_handlers
 from kot.console import error as log_error
-from kot.console import log
+from kot.console import log, setverbose
 from kot.update import prompt_to_update
 
 
@@ -12,51 +12,37 @@ def main():
     __excepthook__ = sys.excepthook
 
     def excepthook(etype, value, tb):
-        if isinstance(value, KeyboardInterrupt):
+        if isinstance(value, (kot.BuildFailure, kot.MissingConfigEntryError)):
+            log_error(value)
+            sys.exit(1)
+        elif isinstance(value, (kot.BuildSystemError, kot.EditorError)):
+            log_error(value)
+            sys.exit(2)
+        elif isinstance(value, KeyboardInterrupt):
             log("\nReceived keyboard interrupt.", good=False)
             sys.exit(3)
+        elif isinstance(value, kot.KotError):
+            log_error(value)
+            sys.exit(-1)
         else:
             __excepthook__(etype, value, tb)
+
+        prompt_to_update()
 
     sys.excepthook = excepthook
 
     args = parser.parse_args()
-    if args.subcommand == "build":
-        if args.verbose:
-            kot.print_debug = True
-
-        cli_action = cli_build
-    elif args.subcommand == "run":
-        if args.verbose:
-            kot.debug_mode = True
-
-        cli_action = cli_run
-    elif args.subcommand == "launch":
-        if args.verbose:
-            kot.debug_mode = True
-
-        cli_action = cli_launch
-    elif args.subcommand == "pg":
-        if args.verbose:
-            kot.debug_mode = True
-
-        cli_action = cli_playground
-    else:
-        parser.error("missing subcommand")
-
-    result = 0
     try:
-        cli_action(args)
-    except (kot.BuildSystemError, kot.EditorError) as e:
-        log_error(e)
-        result = 2
-    except kot.BuildFailure as e:
-        log_error(e)
-        result = 1
+        handler = cli_handlers[args.subcommand]
+    except KeyError:
+        if args.subcommand is None:
+            parser.error("missing subcommand")
+        else:
+            parser.error(f"unknown subcommand: {args.subcommand}")
 
+    setverbose(int(args.verbose))
+    handler(args)
     prompt_to_update()
-
-    return result
 
 
 if __name__ == "__main__":

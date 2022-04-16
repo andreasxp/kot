@@ -8,25 +8,31 @@ import appdirs
 
 __version__ = "0.2.1"
 
-rootdir = dirname(__file__)
-tempdir = mkdtemp()
-configdir = appdirs.user_config_dir("kot", appauthor=False, roaming=True)
-datadir = appdirs.user_data_dir("kot", appauthor=False, roaming=True)
+rootdir = dirname(__file__).replace("\\", "/")
+tempdir = mkdtemp().replace("\\", "/")
+configdir = appdirs.user_config_dir("kot", appauthor=False, roaming=True).replace("\\", "/")
+datadir = appdirs.user_data_dir("kot", appauthor=False, roaming=True).replace("\\", "/")
 
 Path(configdir).mkdir(parents=True, exist_ok=True)
 Path(datadir).mkdir(parents=True, exist_ok=True)
 atexit.register(lambda: shutil.rmtree(tempdir))
 
-debug_mode = False
+
+class KotError(Exception):
+    """Base class for all exceptions raised by kot."""
 
 
-class EditorError(RuntimeError):
+class MissingConfigEntryError(KotError):
+    """Config entry is missing."""
+
+
+class EditorError(KotError):
     """Editor process crashed."""
 
 
-class BuildSystemError(RuntimeError):
+class BuildSystemError(KotError):
     """Build system is broken."""
 
 
-class BuildFailure(ValueError):
+class BuildFailure(KotError):
     """Build system attempted to build, but failed due to errors in source files."""

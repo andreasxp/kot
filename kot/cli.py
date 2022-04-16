@@ -4,13 +4,13 @@ import shutil
 import subprocess as sp
 from argparse import REMAINDER, ArgumentParser
 from itertools import chain
-from os.path import isfile
+from os.path import isfile, expandvars
 from pathlib import Path
 
 import kot
 
 from .base import build, config, launch
-from .console import log
+from .console import log, debug as log_debug
 from .util import glob
 
 
@@ -100,10 +100,16 @@ def cli_playground(cli):
 
     playgroundfile = playgrounddir + "/source.cpp"
     if not isfile(playgroundfile):
-        shutil.copyfile(kot.rootdir + "/data/plyground_template.cpp", playgroundfile)
+        shutil.copyfile(kot.rootdir + "/data/playground_template.cpp", playgroundfile)
 
     os.environ["playground"] = playgroundfile
-    ret = sp.run(["powershell.exe", "-Command", config["command.editor"]], check=False).returncode
+    editorargs = shlex.split(config["command.editor"])
+    editorargs = [expandvars(arg) for arg in editorargs]
+    editorargs = [arg.replace("\\", "/") for arg in editorargs]
+
+    log_debug(f"Editor process: {editorargs}")
+    ret = sp.run(editorargs, env=os.environ, check=False).returncode
+
     if ret != 0:
         raise kot.EditorError(f"Editor process crashed with code {ret}.")
 
@@ -127,24 +133,34 @@ def cli_playground(cli):
     cli_run(cli)
 
 
+def cli_config(cli):
+    value = shlex.join(cli.value)
+
+    try:
+        if value != "":
+            config[cli.name] = value
+        print(config[cli.name])
+    except KeyError:
+        raise kot.MissingConfigEntryError(f"No config entry for \"{cli.name}\"") from None
+
+
 # Argument parser ======================================================================================================
 def _make_parser():
     parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
     parser.set_defaults(subcommand=None)
     parser.add_argument("-V", "--version", action='version', version=kot.__version__)
+    parser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     subparsers = parser.add_subparsers(title="subcommands")
 
     subparser = subparsers.add_parser("build", description="Build a C++ file.")
     subparser.set_defaults(subcommand="build")
     subparser.add_argument("file", nargs="+", help="one or more .cpp files to build")
-    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
     subparser.add_argument("-o", "--output", help="specify a different name for the output file")
 
     subparser = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
     subparser.set_defaults(subcommand="run")
     subparser.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
-    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
     subparser.add_argument("-o", "--output", help="specify a different name for the output file")
     subparser.add_argument("--args", help="cli arguments for execution")
@@ -155,19 +171,30 @@ def _make_parser():
     subparser = subparsers.add_parser("launch", description="Launch a binary executable.")
     subparser.set_defaults(subcommand="launch")
     subparser.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
-    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     stylegroup = subparser.add_mutually_exclusive_group()
     stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
     stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
 
     subparser = subparsers.add_parser("pg", description="Launch code from an interactive playground.")
     subparser.set_defaults(subcommand="pg")
-    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     stylegroup = subparser.add_mutually_exclusive_group()
     stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
     stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+
+    subparser = subparsers.add_parser("config", description="Configure kot behavior.")
+    subparser.set_defaults(subcommand="config")
+    subparser.add_argument("name", help="Configuration entry to view or configure")
+    subparser.add_argument("value", nargs=REMAINDER, help="Optional new value for the config entry.")
 
     return parser
 
 
 parser = _make_parser()
+
+cli_handlers = {
+    "build": cli_build,
+    "run": cli_run,
+    "launch": cli_launch,
+    "pg": cli_playground,
+    "config": cli_config
+}
