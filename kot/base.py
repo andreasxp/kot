@@ -3,16 +3,12 @@ import shutil
 import subprocess as sp
 import sys
 from collections.abc import MutableMapping
-from os.path import expanduser
+from os.path import expanduser, expandvars
 
 import kot
 
 from .console import debug as log_debug
 from .console import log
-
-include_dir = expanduser("~/vcpkg/installed/x64-windows-static/include")
-lib_dir = expanduser("~/vcpkg/installed/x64-windows-static/lib")
-print_debug = False
 
 
 def build(sources: list, output: str, debug: bool):
@@ -47,8 +43,18 @@ def build(sources: list, output: str, debug: bool):
         "/Od" if debug else "/O2",
         "/MTd" if debug else "/MT"
     ]
-    include_args = ["/I", include_dir]
-    link_args = ["/link", f"/LIBPATH:\"{lib_dir}\""]
+    include_args = []
+    link_args = []
+
+    # Include vcpkg if scecified
+    vcpkg_dir = config["path.vcpkg"]
+    if vcpkg_dir:
+        vcpkg_dir = expandvars(expanduser(vcpkg_dir)).replace("\\", "/")
+        vcpkg_include_dir = vcpkg_dir + "/installed/x64-windows-static/include"
+        vcpkg_lib_dir = vcpkg_dir + "/installed/x64-windows-static/lib"
+
+        include_args = ["/I", vcpkg_include_dir]
+        link_args = ["/link", f"/LIBPATH:\"{vcpkg_lib_dir}\""]
 
     args = compiler + sources + target_args + misc_args + optimization_args + include_args + link_args
     args = [str(arg) for arg in args]

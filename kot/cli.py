@@ -134,7 +134,10 @@ def cli_playground(cli):
 
 
 def cli_config(cli):
-    value = shlex.join(cli.value)
+    if cli.name.startswith("command"):
+        value = shlex.join(cli.value)
+    else:
+        value = " ".join(cli.value)
 
     try:
         if value != "":
