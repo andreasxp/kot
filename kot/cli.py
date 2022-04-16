@@ -1,11 +1,15 @@
+import os
 import shlex
+import shutil
+import subprocess as sp
 from argparse import REMAINDER, ArgumentParser
 from itertools import chain
+from os.path import isfile
 from pathlib import Path
 
 import kot
 
-from .base import build, launch
+from .base import build, config, launch
 from .console import log
 from .util import glob
 
@@ -90,6 +94,39 @@ def cli_run(cli):
     launch(command, style=style)
 
 
+def cli_playground(cli):
+    playgrounddir = kot.datadir + "/playground"
+    Path(playgrounddir).mkdir(exist_ok=True)
+
+    playgroundfile = playgrounddir + "/source.cpp"
+    if not isfile(playgroundfile):
+        shutil.copyfile(kot.rootdir + "/data/plyground_template.cpp", playgroundfile)
+
+    os.environ["playground"] = playgroundfile
+    ret = sp.run(["powershell.exe", "-Command", config["command.editor"]], check=False).returncode
+    if ret != 0:
+        raise kot.EditorError(f"Editor process crashed with code {ret}.")
+
+    with open(playgroundfile, "r", encoding="utf-8") as f:
+        code = f.read()
+
+    log("Source code")
+    print(code)
+
+    if cli.terminal:
+        # Print helpful messages to separate source code, building and running
+        # cli_run prints this only when not cli.terminal, but we need this regardless of style to separarate compilation
+        # from source code
+        log("Building")
+
+    cli.file = [playgroundfile]
+    cli.debug = False
+    cli.output = kot.tempdir + "/playground.exe"
+    cli.args = None
+
+    cli_run(cli)
+
+
 # Argument parser ======================================================================================================
 def _make_parser():
     parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
@@ -97,31 +134,38 @@ def _make_parser():
     parser.add_argument("-V", "--version", action='version', version=kot.__version__)
     subparsers = parser.add_subparsers(title="subcommands")
 
-    parser_build = subparsers.add_parser("build", description="Build a C++ file.")
-    parser_build.set_defaults(subcommand="build")
-    parser_build.add_argument("file", nargs="+", help="one or more .cpp files to build")
-    parser_build.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
-    parser_build.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    parser_build.add_argument("-o", "--output", help="specify a different name for the output file")
+    subparser = subparsers.add_parser("build", description="Build a C++ file.")
+    subparser.set_defaults(subcommand="build")
+    subparser.add_argument("file", nargs="+", help="one or more .cpp files to build")
+    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    subparser.add_argument("-o", "--output", help="specify a different name for the output file")
 
-    parser_run = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
-    parser_run.set_defaults(subcommand="run")
-    parser_run.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
-    parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
-    parser_run.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    parser_run.add_argument("-o", "--output", help="specify a different name for the output file")
-    parser_run.add_argument("--args", help="cli arguments for execution")
-    style = parser_run.add_mutually_exclusive_group()
-    style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    subparser = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
+    subparser.set_defaults(subcommand="run")
+    subparser.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
+    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
+    subparser.add_argument("-o", "--output", help="specify a different name for the output file")
+    subparser.add_argument("--args", help="cli arguments for execution")
+    stylegroup = subparser.add_mutually_exclusive_group()
+    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
 
-    parser_run = subparsers.add_parser("launch", description="Launch a binary executable.")
-    parser_run.set_defaults(subcommand="launch")
-    parser_run.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
-    parser_run.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
-    style = parser_run.add_mutually_exclusive_group()
-    style.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    style.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    subparser = subparsers.add_parser("launch", description="Launch a binary executable.")
+    subparser.set_defaults(subcommand="launch")
+    subparser.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
+    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    stylegroup = subparser.add_mutually_exclusive_group()
+    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+
+    subparser = subparsers.add_parser("pg", description="Launch code from an interactive playground.")
+    subparser.set_defaults(subcommand="pg")
+    subparser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
+    stylegroup = subparser.add_mutually_exclusive_group()
+    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
 
     return parser
 

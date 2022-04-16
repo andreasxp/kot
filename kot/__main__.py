@@ -2,7 +2,7 @@ import sys
 
 import kot
 
-from kot.cli import parser, cli_build, cli_run, cli_launch
+from kot.cli import parser, cli_build, cli_run, cli_launch, cli_playground
 from kot.console import error as log_error
 from kot.console import log
 from kot.update import prompt_to_update
@@ -36,13 +36,18 @@ def main():
             kot.debug_mode = True
 
         cli_action = cli_launch
+    elif args.subcommand == "pg":
+        if args.verbose:
+            kot.debug_mode = True
+
+        cli_action = cli_playground
     else:
         parser.error("missing subcommand")
 
     result = 0
     try:
         cli_action(args)
-    except kot.BuildSystemError as e:
+    except (kot.BuildSystemError, kot.EditorError) as e:
         log_error(e)
         result = 2
     except kot.BuildFailure as e:

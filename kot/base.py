@@ -1,9 +1,9 @@
-import atexit
+import json
 import shutil
 import subprocess as sp
 import sys
+from collections.abc import MutableMapping
 from os.path import expanduser
-from tempfile import mkdtemp
 
 import kot
 
@@ -40,13 +40,9 @@ def build(sources: list, output: str, debug: bool):
     if len(sources) == 0:
         raise kot.BuildSystemError("No source files with specified names found.")
 
-    # Create temp directory for compilation ----------------------------------------------------------------------------
-    temp_dir = mkdtemp()
-    atexit.register(lambda: shutil.rmtree(temp_dir))
-
     # Collect build args -----------------------------------------------------------------------------------------------
     target_args = ["/Fe:", output]
-    misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", temp_dir + "\\"]
+    misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", kot.tempdir + "\\"]
     optimization_args = [
         "/Od" if debug else "/O2",
         "/MTd" if debug else "/MT"
@@ -78,3 +74,69 @@ def launch(command, style: str):
     else:
         ret = sp.run(command, check=False)
         log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=(style == "pause"))
+
+
+class Config(MutableMapping):
+    @classmethod
+    def _configpath(cls):
+        return kot.configdir + "/config.json"
+
+    @classmethod
+    def _load(cls):
+        configpath = cls._configpath()
+        try:
+            with open(configpath, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {
+                "command": {
+                    "editor": r'Start-Process "notepad.exe" -ArgumentList "$env:playground" -Wait',
+                },
+                "path": {
+                    "vcpkg": None,
+                }
+            }
+
+    @classmethod
+    def _save(cls, config):
+        configpath = cls._configpath()
+        with open(configpath, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
+    def __getitem__(self, key):
+        config = self._load()
+
+        key = key.split(".")
+        value = config
+        for part in key:
+            value = value[part]
+
+        return value
+
+    def __setitem__(self, key, value):
+        config = self._load()
+
+        parts = key.split(".")
+        for part in parts[:-1]:
+            config = config[part]
+        finalkey = key[-1]
+
+        if finalkey not in config:
+            raise KeyError(f"config entry {key} does not exist")
+
+        config[finalkey] = value
+        self._save(config)
+
+    def __delitem__(self, key):
+        raise NotImplementedError
+
+    def __iter__(self):
+        config = self._load()
+        return iter(config)
+
+    def __len__(self):
+        config = self._load()
+        return len(config)
+
+
+config = Config()
