@@ -14,7 +14,7 @@ entry_points = {
 
 setup(
     name="kot",
-    version="0.3.0",
+    version="0.3.1",
     description="A very simple C++ builder and runner",
     author="Andrey Zhukov",
     url="https://github.com/andreasxp/kot",
