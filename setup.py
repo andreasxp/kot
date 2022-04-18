@@ -3,14 +3,10 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "colorama"
+    "appdirs",
+    "colorama",
+    "requests",
 ]
-
-extras_require = {
-    "freeze":  [
-        "pyinstaller",
-    ]
-}
 
 entry_points = {
     "console_scripts": ["kot = kot.__main__:main"],
@@ -23,7 +19,6 @@ setup(
     author="Andrey Zhukov",
     url="https://github.com/andreasxp/kot",
     install_requires=install_requires,
-    extras_require=extras_require,
     packages=find_packages(include=[
         "kot",
         "kot.*"
