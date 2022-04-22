@@ -149,6 +149,11 @@ def cli_config(cli):
 
 # Argument parser ======================================================================================================
 def _make_parser():
+    def add_style_params(parser):
+        stylegroup = parser.add_mutually_exclusive_group()
+        stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
+        stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+
     parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
     parser.set_defaults(subcommand=None)
     parser.add_argument("-V", "--version", action='version', version=kot.__version__)
@@ -167,27 +172,21 @@ def _make_parser():
     subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
     subparser.add_argument("-o", "--output", help="specify a different name for the output file")
     subparser.add_argument("--args", help="cli arguments for execution")
-    stylegroup = subparser.add_mutually_exclusive_group()
-    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    add_style_params(subparser)
 
     subparser = subparsers.add_parser("launch", description="Launch a binary executable.")
     subparser.set_defaults(subcommand="launch")
     subparser.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
-    stylegroup = subparser.add_mutually_exclusive_group()
-    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    add_style_params(subparser)
 
     subparser = subparsers.add_parser("pg", description="Launch code from an interactive playground.")
     subparser.set_defaults(subcommand="pg")
-    stylegroup = subparser.add_mutually_exclusive_group()
-    stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-    stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
+    add_style_params(subparser)
 
     subparser = subparsers.add_parser("config", description="Configure kot behavior.")
     subparser.set_defaults(subcommand="config")
-    subparser.add_argument("name", help="Configuration entry to view or configure")
-    subparser.add_argument("value", nargs=REMAINDER, help="Optional new value for the config entry.")
+    subparser.add_argument("name", help="configuration entry to view or change")
+    subparser.add_argument("value", nargs=REMAINDER, help="optional new value for the config entry")
 
     return parser
 
