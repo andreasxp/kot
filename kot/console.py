@@ -1,5 +1,6 @@
 from typing import Optional
-from colorama import init as colorama_init, Fore, Style
+import click
+
 
 _verbose = 0
 
@@ -13,20 +14,19 @@ def verbose():
     return _verbose
 
 
-def coloprint(*args, **kwargs):
-    colorama_init(autoreset=True)
-    print(*args, **kwargs)
+def echo(text=""):
+    click.echo(text)
 
 
 def log(text, good: Optional[bool] = None, wait=False):
     if good is None:
-        color = Fore.CYAN
+        color = "cyan"
     elif good:
-        color = Fore.GREEN
+        color = "green"
     else:
-        color = Fore.RED
+        color = "red"
 
-    coloprint(f"{Style.BRIGHT}{color}{text}", end="")
+    click.secho(text, nl=False, fg=color)
 
     if wait:
         input()
@@ -35,9 +35,9 @@ def log(text, good: Optional[bool] = None, wait=False):
 
 
 def error(text):
-    coloprint(f"{Style.BRIGHT}{Fore.RED}Error: {text}")
+    click.secho(f"Error: {text}", fg="red")
 
 
 def debug(text):
     if verbose():
-        coloprint(f"{Style.BRIGHT}{Fore.YELLOW}{text}")
+        click.secho(text, fg="yellow")

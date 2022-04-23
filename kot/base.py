@@ -6,9 +6,7 @@ from collections.abc import MutableMapping, Iterable
 from os.path import expanduser, expandvars
 
 import kot
-
-from .console import debug as log_debug
-from .console import log
+from kot import console
 
 
 def build(sources: Iterable[str], output: str, debug: bool):
@@ -36,7 +34,7 @@ def build(sources: Iterable[str], output: str, debug: bool):
 
     compiler = ["cl"]
     if len(sources) == 0:
-        raise kot.BuildSystemError("No source files with specified names found.")
+        raise kot.BuildSystemError("no source files with specified names found.")
 
     # Collect build args -----------------------------------------------------------------------------------------------
     target_args = ["/Fe:", output]
@@ -60,7 +58,7 @@ def build(sources: Iterable[str], output: str, debug: bool):
 
     args = compiler + sources + target_args + misc_args + optimization_args + include_args + link_args
     args = [str(arg) for arg in args]
-    log_debug(f"Compiling: {' '.join(args)}")
+    console.debug(f"Compiling: {' '.join(args)}")
 
     # Build ------------------------------------------------------------------------------------------------------------
     if activate_environment is None:
@@ -68,7 +66,8 @@ def build(sources: Iterable[str], output: str, debug: bool):
     else:
         ret = sp.run(activate_environment + args, shell=True, executable=shutil.which("powershell"), check=False)
 
-    return ret.returncode
+    if ret.returncode != 0:
+        raise kot.BuildFailure(f"Compilation failed with code {ret.returncode}.")
 
 
 def launch(command: Iterable[str], presentation: str):
@@ -83,7 +82,8 @@ def launch(command: Iterable[str], presentation: str):
         sp.run(wrapper_executable + ["launch", "-p"] + command, creationflags=sp.CREATE_NEW_CONSOLE, check=True)
     else:
         ret = sp.run(command, check=False)
-        log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=(presentation == "pause"))
+        console.log(f"\nProcess exited with code {ret.returncode}.", good=(
+            ret.returncode == 0), wait=(presentation == "pause"))
 
 
 class Config(MutableMapping):

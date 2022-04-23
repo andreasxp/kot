@@ -9,7 +9,7 @@ import click
 import kot
 
 from kot import base
-from .console import log, debug as log_debug, setverbose
+from kot import console
 
 
 def _output_callback(ctx, param, value):
@@ -53,7 +53,7 @@ def _presentation_options(f):
 
 @click.group(help="A very simple C++ builder and runner.", context_settings=dict(max_content_width=200))
 @click.option("-v", "verbose", is_eager=True, is_flag=True, default=False, expose_value=False,
-              help="Enable verbose output.", callback=lambda ctx, param, verbose: setverbose(verbose))
+              help="Enable verbose output.", callback=lambda ctx, param, verbose: console.setverbose(verbose))
 @click.version_option(kot.__version__, prog_name="Kot", message="%(prog)s %(version)s")
 def cli():
     pass
@@ -63,10 +63,7 @@ def cli():
 @_build_options
 def build(sources, output, debug):
     """Build a binary from C++ source files."""
-    returncode = base.build(sources, output, debug)
-
-    if returncode != 0:
-        raise kot.BuildFailure(f"Compilation failed with code {returncode}.")
+    base.build(sources, output, debug)
 
 
 @cli.command(context_settings=dict(ignore_unknown_options=True, allow_interspersed_args=False))
@@ -85,13 +82,13 @@ def run(sources, output, debug, presentation, args):
     """Build and run a binary from C++ source files."""
     if presentation != "terminal":
         # Print helpful messages to separate building and running
-        log("Building")
+        console.log("Building")
 
     base.build(sources, output, debug)
 
     if presentation != "terminal":
         # Print helpful messages to separate building and running
-        log("Launching")
+        console.log("Launching")
 
     base.launch([output] + shlex.split(args), presentation)
 
@@ -112,7 +109,7 @@ def pg(presentation):
     editorargs = [expandvars(arg) for arg in editorargs]
     editorargs = [arg.replace("\\", "/") for arg in editorargs]
 
-    log_debug(f"Editor process: {editorargs}")
+    console.debug(f"Editor process: {editorargs}")
     ret = sp.run(editorargs, env=os.environ, check=False).returncode
 
     if ret != 0:
@@ -121,17 +118,17 @@ def pg(presentation):
     with open(playgroundfile, "r", encoding="utf-8") as f:
         code = f.read()
 
-    log("Source code")
+    console.log("Source code")
     print(code)
 
     output = kot.tempdir + "/playground.exe"
 
-    log("Building")
+    console.log("Building")
     base.build([playgroundfile], output, debug=False)
 
     if presentation != "terminal":
         # Print helpful messages to separate building and running
-        log("Launching")
+        console.log("Launching")
 
     base.launch([output], presentation)
 
