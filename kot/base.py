@@ -39,6 +39,9 @@ def build(sources: Iterable[str], output: str, debug: bool):
     # Collect build args -----------------------------------------------------------------------------------------------
     target_args = ["/Fe:", output]
     misc_args = ["/std:c++latest", "/W3", "/nologo", "/EHsc", "/Zc:preprocessor", "/Fo:", kot.tempdir + "\\"]
+    preprocessor_args = []
+    if not debug:
+        preprocessor_args.append("/DNDEBUG")
     optimization_args = [
         "/Od" if debug else "/O2",
         "/MTd" if debug else "/MT"
@@ -56,7 +59,8 @@ def build(sources: Iterable[str], output: str, debug: bool):
         include_args = ["/I", vcpkg_include_dir]
         link_args = ["/link", f"/LIBPATH:\"{vcpkg_lib_dir}\""]
 
-    args = compiler + sources + target_args + misc_args + optimization_args + include_args + link_args
+    args = (compiler + sources + target_args + preprocessor_args +
+            misc_args + optimization_args + include_args + link_args)
     args = [str(arg) for arg in args]
     console.debug(f"Compiling: {' '.join(args)}")
 
