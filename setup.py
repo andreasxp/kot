@@ -9,6 +9,10 @@ install_requires = [
     "click"
 ]
 
+extras_require = {
+    "test": "pytest"
+}
+
 entry_points = {
     "console_scripts": ["kot = kot.__main__:main"],
 }
@@ -20,6 +24,7 @@ setup(
     author="Andrey Zhukov",
     url="https://github.com/andreasxp/kot",
     install_requires=install_requires,
+    extras_require=extras_require,
     packages=find_packages(include=[
         "kot",
         "kot.*"
