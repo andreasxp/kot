@@ -6,6 +6,7 @@ install_requires = [
     "appdirs",
     "colorama",
     "requests",
+    "click"
 ]
 
 entry_points = {

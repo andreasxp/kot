@@ -2,99 +2,104 @@ import os
 import shlex
 import shutil
 import subprocess as sp
-from argparse import REMAINDER, ArgumentParser
-from itertools import chain
 from os.path import isfile, expandvars
 from pathlib import Path
+import click
 
 import kot
 
-from .base import build, config, launch
-from .console import log, debug as log_debug
-from .util import glob
+from kot import base
+from .console import log, debug as log_debug, setverbose
 
 
-def sources_from_cli(sources):
-    """Convert a list of sources as specified by the user to a list of sources ready for compilation.
-    Resolves glob patterns and ~ symbols.
-    """
-    expanded_sources = (Path(source).expanduser() for source in sources)
-    globbed_sources = (glob(pattern) for pattern in expanded_sources)
-    result = list(chain.from_iterable(globbed_sources))
+def _output_callback(ctx, param, value):
+    """Compute final executable name."""
+    # Sources are guaranteed to exist if value is None
+    # See https://click.palletsprojects.com/en/8.1.x/advanced/?highlight=callback#callback-evaluation-order
+    sources = ctx.params.get("sources", [])
 
-    return result
-
-
-def output_from_cli(sources, override=None):
-    """Calculate output path. Usually it's sources[0] with an `.exe` suffix. If override is not None, use override."""
-    default_name = "app"
-
-    if override is not None:
-        result = Path(override)
-        if result.suffix != ".exe":
-            result = Path(str(result) + ".exe")
-    elif len(sources) > 1 or "*" in sources[0]:
-        result = Path(default_name + ".exe")
+    if value:
+        # If specified in CLI, use that, with .exe suffix if missing
+        if Path(value).suffix != ".exe":
+            value = value + ".exe"
+    elif len(sources) == 1:
+        # If just one source, use source filename with .exe suffix
+        value = str(Path(Path(sources[0]).name).with_suffix(".exe"))
     else:
-        result = Path(sources[0]).with_suffix(".exe")
+        # Otherwise use default name
+        value = "app.exe"
 
-    result = result.expanduser()
-    return str(result)
+    return value
 
 
-def cli_build(cli):
-    sources = sources_from_cli(cli.file)
-    output = output_from_cli(sources, cli.output)
-    debug = cli.debug
+def _build_options(f):
+    sources = click.argument("sources", type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
+                             required=True, nargs=-1)
+    output = click.option("-o", "--output", type=click.Path(file_okay=True, dir_okay=False, writable=True),
+                          help="Output filename.", show_default="source name or 'app' for many sources",
+                          callback=_output_callback)
+    buildmode = click.option("--debug/--release", "-d/-r", default=False, help="Building mode.", show_default=True)
 
-    returncode = build(sources, output, debug)
+    return sources(output(buildmode(f)))
+
+
+def _presentation_options(f):
+    pause = click.option("-p", "--pause", "presentation", flag_value="pause", help="Pause after execution.")
+    terminal = click.option("-t", "--terminal", "presentation", flag_value="terminal",
+                            help="Open a separate terminal for output and pause after execution.")
+
+    return pause(terminal(f))
+
+
+@click.group(help="A very simple C++ builder and runner.", context_settings=dict(max_content_width=200))
+@click.option("-v", "verbose", is_eager=True, is_flag=True, default=False, expose_value=False,
+              help="Enable verbose output.", callback=lambda ctx, param, verbose: setverbose(verbose))
+@click.version_option(kot.__version__, prog_name="Kot", message="%(prog)s %(version)s")
+def cli():
+    pass
+
+
+@cli.command()
+@_build_options
+def build(sources, output, debug):
+    """Build a binary from C++ source files."""
+    returncode = base.build(sources, output, debug)
 
     if returncode != 0:
         raise kot.BuildFailure(f"Compilation failed with code {returncode}.")
 
-    return output
+
+@cli.command(context_settings=dict(ignore_unknown_options=True, allow_interspersed_args=False))
+@click.argument("command", type=click.UNPROCESSED, required=True, nargs=-1)
+@_presentation_options
+def launch(command, presentation):
+    """Execute any command and print exit code."""
+    base.launch(command, presentation)
 
 
-def cli_launch(cli):
-    command = cli.command
-
-    if cli.terminal:
-        style = "terminal"
-    elif cli.pause:
-        style = "pause"
-    else:
-        style = None
-
-    launch(command, style=style)
-
-
-def cli_run(cli):
-    """Run a binary, optionally compiling it from sources first."""
-    # Build ------------------------------------------------------------------------------------------------------------
-    if not cli.terminal:
+@cli.command()
+@_build_options
+@_presentation_options
+@click.option("--args", type=click.UNPROCESSED, default="", help="Additional cli arguments for the executable.")
+def run(sources, output, debug, presentation, args):
+    """Build and run a binary from C++ source files."""
+    if presentation != "terminal":
         # Print helpful messages to separate building and running
         log("Building")
 
-    command = [cli_build(cli)]
-    if cli.args is not None:
-        command += shlex.split(cli.args)
+    base.build(sources, output, debug)
 
-    if not cli.terminal:
+    if presentation != "terminal":
         # Print helpful messages to separate building and running
         log("Launching")
 
-    # Launch -----------------------------------------------------------------------------------------------------------
-    if cli.terminal:
-        style = "terminal"
-    elif cli.pause:
-        style = "pause"
-    else:
-        style = None
-
-    launch(command, style=style)
+    base.launch([output] + shlex.split(args), presentation)
 
 
-def cli_playground(cli):
+@cli.command()
+@_presentation_options
+def pg(presentation):
+    """Open an interactive C++ playground."""
     playgrounddir = kot.datadir + "/playground"
     Path(playgrounddir).mkdir(exist_ok=True)
 
@@ -103,7 +108,7 @@ def cli_playground(cli):
         shutil.copyfile(kot.rootdir + "/data/playground_template.cpp", playgroundfile)
 
     os.environ["playground"] = playgroundfile
-    editorargs = shlex.split(config["command.editor"])
+    editorargs = shlex.split(base.config["command.editor"])
     editorargs = [expandvars(arg) for arg in editorargs]
     editorargs = [arg.replace("\\", "/") for arg in editorargs]
 
@@ -119,84 +124,31 @@ def cli_playground(cli):
     log("Source code")
     print(code)
 
-    if cli.terminal:
-        # Print helpful messages to separate source code, building and running
-        # cli_run prints this only when not cli.terminal, but we need this regardless of style to separarate compilation
-        # from source code
-        log("Building")
+    output = kot.tempdir + "/playground.exe"
 
-    cli.file = [playgroundfile]
-    cli.debug = False
-    cli.output = kot.tempdir + "/playground.exe"
-    cli.args = None
+    log("Building")
+    base.build([playgroundfile], output, debug=False)
 
-    cli_run(cli)
+    if presentation != "terminal":
+        # Print helpful messages to separate building and running
+        log("Launching")
+
+    base.launch([output], presentation)
 
 
-def cli_config(cli):
-    if cli.name.startswith("command"):
-        value = shlex.join(cli.value)
+@cli.command(context_settings=dict(ignore_unknown_options=True, allow_interspersed_args=False))
+@click.argument("name", required=True)
+@click.argument("value", type=click.UNPROCESSED, nargs=-1)
+def config(name, value):
+    """View config entry 'name' or replace it with 'value', if specified."""
+    if name.startswith("command"):
+        value = shlex.join(value)
     else:
-        value = " ".join(cli.value)
+        value = " ".join(value)
 
     try:
         if value != "":
-            config[cli.name] = value
-        print(config[cli.name])
+            base.config[name] = value
+        print(base.config[name])
     except KeyError:
-        raise kot.MissingConfigEntryError(f"No config entry for \"{cli.name}\"") from None
-
-
-# Argument parser ======================================================================================================
-def _make_parser():
-    def add_style_params(parser):
-        stylegroup = parser.add_mutually_exclusive_group()
-        stylegroup.add_argument("-p", "--pause", action="store_true", help="pause after executing")
-        stylegroup.add_argument("-t", "--terminal", action="store_true", help="run in a separate terminal and pause")
-
-    parser = ArgumentParser("kot", description="A very simple C++ builder and runner.")
-    parser.set_defaults(subcommand=None)
-    parser.add_argument("-V", "--version", action='version', version=kot.__version__)
-    parser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
-    subparsers = parser.add_subparsers(title="subcommands")
-
-    subparser = subparsers.add_parser("build", description="Build a C++ file.")
-    subparser.set_defaults(subcommand="build")
-    subparser.add_argument("file", nargs="+", help="one or more .cpp files to build")
-    subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    subparser.add_argument("-o", "--output", help="specify a different name for the output file")
-
-    subparser = subparsers.add_parser("run", description="Run a C++ file, compiling it first.")
-    subparser.set_defaults(subcommand="run")
-    subparser.add_argument("file", nargs="+", help="one or more .cpp files to build or a single binary file to run")
-    subparser.add_argument("-d", "--debug", action="store_true", help="build in debug mode")
-    subparser.add_argument("-o", "--output", help="specify a different name for the output file")
-    subparser.add_argument("--args", help="cli arguments for execution")
-    add_style_params(subparser)
-
-    subparser = subparsers.add_parser("launch", description="Launch a binary executable.")
-    subparser.set_defaults(subcommand="launch")
-    subparser.add_argument("command", nargs=REMAINDER, help="executable and arguments to launch")
-    add_style_params(subparser)
-
-    subparser = subparsers.add_parser("pg", description="Launch code from an interactive playground.")
-    subparser.set_defaults(subcommand="pg")
-    add_style_params(subparser)
-
-    subparser = subparsers.add_parser("config", description="Configure kot behavior.")
-    subparser.set_defaults(subcommand="config")
-    subparser.add_argument("name", help="configuration entry to view or change")
-    subparser.add_argument("value", nargs=REMAINDER, help="optional new value for the config entry")
-
-    return parser
-
-
-parser = _make_parser()
-
-cli_handlers = {
-    "build": cli_build,
-    "run": cli_run,
-    "launch": cli_launch,
-    "pg": cli_playground,
-    "config": cli_config
-}
+        raise kot.MissingConfigEntryError(f"No config entry for \"{name}\"") from None

@@ -2,7 +2,7 @@ import json
 import shutil
 import subprocess as sp
 import sys
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping, Iterable
 from os.path import expanduser, expandvars
 
 import kot
@@ -11,8 +11,10 @@ from .console import debug as log_debug
 from .console import log
 
 
-def build(sources: list, output: str, debug: bool):
+def build(sources: Iterable[str], output: str, debug: bool):
     """Build an executable from a list of sources. Use Visual Studio compiler."""
+    sources = list(sources)
+    output = str(output)
 
     # Find Visual Studio compiler --------------------------------------------------------------------------------------
     if shutil.which("cl") is None:
@@ -69,8 +71,10 @@ def build(sources: list, output: str, debug: bool):
     return ret.returncode
 
 
-def launch(command, style: str):
-    if style == "terminal":
+def launch(command: Iterable[str], presentation: str):
+    command = list(command)
+
+    if presentation == "terminal":
         if sys.executable.endswith("kot.exe"):
             wrapper_executable = [sys.executable]
         else:
@@ -79,7 +83,7 @@ def launch(command, style: str):
         sp.run(wrapper_executable + ["launch", "-p"] + command, creationflags=sp.CREATE_NEW_CONSOLE, check=True)
     else:
         ret = sp.run(command, check=False)
-        log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=(style == "pause"))
+        log(f"\nProcess exited with code {ret.returncode}.", good=(ret.returncode == 0), wait=(presentation == "pause"))
 
 
 class Config(MutableMapping):
