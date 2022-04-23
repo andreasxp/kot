@@ -15,7 +15,7 @@ def verbose():
 
 
 def echo(text=""):
-    click.echo(text)
+    click.echo(str(text))
 
 
 def log(text, good: Optional[bool] = None, wait=False):
@@ -26,7 +26,7 @@ def log(text, good: Optional[bool] = None, wait=False):
     else:
         color = "red"
 
-    click.secho(text, nl=False, fg=color)
+    click.secho(str(text), nl=False, fg=color)
 
     if wait:
         input()
@@ -40,4 +40,4 @@ def error(text):
 
 def debug(text):
     if verbose():
-        click.secho(text, fg="yellow")
+        click.secho(str(text), fg="yellow")
