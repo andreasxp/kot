@@ -2,6 +2,8 @@
 A very simple to use code builder for C++, packed with usability features for compiling single files and small projects.
 Kot is an entirely CLI tool, no graphical interface.
 
+![Kot demo](/assets/demo.gif)
+
 ## Installation
 Kot requires Python 3 and pip. Download the latest release via pip like so:
 ```
