@@ -86,9 +86,9 @@ def test_build_debug():
             assert exec_result.returncode == 0
             assert exec_result.stdout == output
 
-    perform_test("debug", ["build", "proj_debug/main.cpp", "--debug"])
-    perform_test("release", ["build", "proj_debug/main.cpp", "--release"])
-    perform_test("release", ["build", "proj_debug/main.cpp"])
+    perform_test(b"debug", ["build", "proj_debug/main.cpp", "--debug"])
+    perform_test(b"release", ["build", "proj_debug/main.cpp", "--release"])
+    perform_test(b"release", ["build", "proj_debug/main.cpp"])
 
 
 def test_launch(capsys):
