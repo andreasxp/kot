@@ -86,15 +86,16 @@ def test_build_debug():
             assert exec_result.returncode == 0
             assert exec_result.stdout == output
 
-    perform_test(b"debug", ["build", "proj_debug/main.cpp", "--debug"])
-    perform_test(b"release", ["build", "proj_debug/main.cpp", "--release"])
-    perform_test(b"release", ["build", "proj_debug/main.cpp"])
+    perform_test("debug", ["build", "proj_debug/main.cpp", "--debug"])
+    perform_test("release", ["build", "proj_debug/main.cpp", "--release"])
+    perform_test("release", ["build", "proj_debug/main.cpp"])
 
 
-def test_launch():
-    ret = run("build", "proj_manyfiles/*.cpp", "--output", "test_launch.exe")
-    assert ret == 0
-    assert Path("test_launch.exe").is_file()
+def test_launch(capsys):
+    with atleave(delete_exe):
+        ret = run("build", "proj_manyfiles/*.cpp", "--output", "test_launch.exe")
+        assert ret == 0
+        assert Path("test_launch.exe").is_file()
 
-    ret = run("launch", "test_launch.exe")
-    assert ret == 0
+        ret = run("launch", "test_launch.exe")
+        assert ret == 0
