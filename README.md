@@ -45,3 +45,6 @@ Options:
   --args TEXT                  Additional cli arguments for the executable.
   --help                       Show this message and exit.
 ```
+
+## License
+Kot is free software, licensed under the terms of the [GNU General Public License v3.0](LICENSE.txt).
